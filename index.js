@@ -2,7 +2,6 @@ const express = require('express');
 const app = express()
 const PORT = 9000;
 
-require('dotenv').config();
 const db = require('ibm_db');
 const connStr = `DATABASE=${process.env.DB_NAME};HOSTNAME=${process.env.DB_HOST};PORT=${process.env.DB_PORT};PROTOCOL=${process.env.DB_PROTOCOL};UID=${process.env.DB_UID};PWD=${process.env.DB_PWD};`
 
@@ -96,10 +95,34 @@ app.post('/users/:id',(req,res)=>{
   });
 });
 
+app.put('/users/:id',(req,res)=>{
+  let id = req.params.id;
+  let {ITEM_ID,ITEM_DONE} = req.body;
+  db.open(connStr, function (connErr, connection) {
+      if (connErr){  console.log(connErr); return;}
+      connection.prepare(`update spw05319.checklist_items set item_done= ? where item_id = ?`,function(prepErr,statement){
+        if (prepErr){ console.log(prepErr); return connection.closeSync();}
+        statement.execute([ITEM_DONE,ITEM_ID], function (execErr, result) {
+          if( execErr ) console.log(execErr);
+          else {
+            result.closeSync();
+            res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+            res.send({response : 'success !'});
+          }
+          statement.close(function(closeErr){
+            if(closeErr) console.log(closeErr)
+            connection.close(function(error){});
+          });
+      });
+    });
+  });
+});
+
+
 //preflight request of cors
 app.options('/users/:id',(req,res)=>{
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-  res.setHeader('Access-Control-Allow-Methods','POST');
+  res.setHeader('Access-Control-Allow-Methods','*');
   res.setHeader('Access-Control-Allow-Headers','*');
   res.status(200).send();
 });
